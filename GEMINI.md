@@ -1,11 +1,11 @@
 # GEMINI.md - Project Context & Rules
 
 ## 1. Runtime Environment
-- **Alias**: `claude z`
+- **Alias**: `claudez`
 - **Tool**: Claude Code CLI
 - **Model**: **Z.ai GLM 4.7** (via API key replacement)
   - *Note: We are NOT using Anthropic's Claude models. All prompts effectively drive GLM 4.7.*
-- **Parallelism**: Native (via `claude z` sub-agents).
+- **Parallelism**: Native (via `claudez` sub-agents).
 
 ## 2. MCP Configuration (Required Servers)
 We must configure `mcp.json` to enable the following tools for GLM 4.7:
@@ -39,18 +39,21 @@ We must configure `mcp.json` to enable the following tools for GLM 4.7:
 
 ## 3. Architecture: Single Invocation + Native Subagents
 
-**Core Concept:** Single hourly `claude z -p` invocation that orchestrates 3-4 parallel subagents.
+**Core Concept:** Single hourly `claudez -p` invocation that orchestrates 3-4 parallel subagents.
 
 ### Invocation Pattern
 ```bash
-claude z -p \
+claudez -p \
   --output-format json \
-  --json-schema orchestrator-schema.json \
   --max-turns 12 \
   --mcp-config ./mcp.json \
-  --strict-mcp-config \
   --append-system-prompt orchestrator-prompt.md
 ```
+
+> [!WARNING]
+> **Non-existent CLI flags**: The flags `--json-schema` and `--strict-mcp-config` do NOT exist in Claude Code CLI. Output validation must be done externally (e.g., Python script). Use `--mcp-debug` for troubleshooting MCP issues.
+
+
 
 ### Subagent Definitions
 Stored in `.claude/agents/`:

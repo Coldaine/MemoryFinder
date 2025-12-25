@@ -27,16 +27,18 @@
       }
     },
     "firecrawl": {
+      "type": "stdio",
       "command": "npx",
       "args": [
         "-y",
-        "@mendable/firecrawl-mcp-server"
+        "firecrawl-mcp"
       ],
       "env": {
         "FIRECRAWL_API_KEY": "${FIRECRAWL_API_KEY}"
       }
     },
     "postgres": {
+      "type": "stdio",
       "command": "npx",
       "args": [
         "-y",
