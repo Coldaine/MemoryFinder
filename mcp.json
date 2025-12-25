@@ -1,20 +1,50 @@
 {
   "mcpServers": {
-    "zai-web-search": {
-      "command": "npx",
-      "args": ["-y", "@zai/web-search"]
+    "web-search-prime": {
+      "type": "http",
+      "url": "https://api.z.ai/api/mcp/web_search_prime/mcp",
+      "headers": {
+        "Authorization": "Bearer ${Z_AI_API_KEY}"
+      }
     },
-    "zai-web-reader": {
-      "command": "npx",
-      "args": ["-y", "@zai/web-reader"]
+    "web-reader": {
+      "type": "http",
+      "url": "https://api.z.ai/api/mcp/web_reader/mcp",
+      "headers": {
+        "Authorization": "Bearer ${Z_AI_API_KEY}"
+      }
     },
     "zai-vision": {
+      "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@zai/vision"]
+      "args": [
+        "-y",
+        "@z_ai/mcp-server"
+      ],
+      "env": {
+        "Z_AI_API_KEY": "${Z_AI_API_KEY}",
+        "Z_AI_MODE": "ZAI"
+      }
     },
     "firecrawl": {
       "command": "npx",
-      "args": ["-y", "@firecrawl/mcp"]
+      "args": [
+        "-y",
+        "@mendable/firecrawl-mcp-server"
+      ],
+      "env": {
+        "FIRECRAWL_API_KEY": "${FIRECRAWL_API_KEY}"
+      }
+    },
+    "postgres": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres"
+      ],
+      "env": {
+        "DATABASE_URL": "${DATABASE_URL}"
+      }
     }
   }
 }

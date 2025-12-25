@@ -1,0 +1,174 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "TR9-RPM Orchestrator Output",
+    "description": "JSON schema for the orchestrator's hourly run output",
+    "type": "object",
+    "required": [
+        "run_id",
+        "started_at",
+        "completed_at",
+        "discovery_ran",
+        "candidates_found",
+        "urls_verified",
+        "observations_written",
+        "deals_found",
+        "deals",
+        "errors"
+    ],
+    "properties": {
+        "run_id": {
+            "type": "string",
+            "description": "Unique identifier for this run"
+        },
+        "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO8601 timestamp when run started"
+        },
+        "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO8601 timestamp when run completed"
+        },
+        "discovery_ran": {
+            "type": "boolean",
+            "description": "Whether heavy discovery was executed this run"
+        },
+        "candidates_found": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of candidate URLs discovered"
+        },
+        "urls_verified": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of URLs that were deep-verified"
+        },
+        "observations_written": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of price observations persisted to DB"
+        },
+        "deals_found": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of deals flagged for alerting"
+        },
+        "deals": {
+            "type": "array",
+            "description": "List of deals detected this run",
+            "items": {
+                "type": "object",
+                "required": [
+                    "listing_id",
+                    "alert_type",
+                    "score",
+                    "current_price_cents",
+                    "url",
+                    "confidence"
+                ],
+                "properties": {
+                    "listing_id": {
+                        "type": "string",
+                        "description": "UUID of the product listing"
+                    },
+                    "alert_type": {
+                        "type": "string",
+                        "enum": [
+                            "price_drop",
+                            "arbitrage",
+                            "stale_pricing",
+                            "back_in_stock"
+                        ],
+                        "description": "Type of deal detected"
+                    },
+                    "score": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "Priority score for this deal"
+                    },
+                    "product_name": {
+                        "type": "string",
+                        "description": "Human-readable product name"
+                    },
+                    "source": {
+                        "type": "string",
+                        "description": "Source/retailer name"
+                    },
+                    "current_price_cents": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Current price in cents"
+                    },
+                    "baseline_price_cents": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "7-day median baseline price in cents"
+                    },
+                    "discount_pct": {
+                        "type": "number",
+                        "description": "Percentage discount from baseline"
+                    },
+                    "url": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "URL to the product page"
+                    },
+                    "confidence": {
+                        "type": "string",
+                        "enum": [
+                            "high",
+                            "medium",
+                            "low"
+                        ],
+                        "description": "Confidence level in this deal"
+                    }
+                }
+            }
+        },
+        "errors": {
+            "type": "array",
+            "description": "Any errors encountered during the run",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "stage": {
+                        "type": "string",
+                        "description": "Which stage the error occurred in"
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "Error message"
+                    },
+                    "url": {
+                        "type": "string",
+                        "description": "URL that caused the error, if applicable"
+                    }
+                }
+            }
+        },
+        "metrics": {
+            "type": "object",
+            "description": "Tool usage metrics for quota tracking",
+            "properties": {
+                "zai_search_calls": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "zai_reader_calls": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "zai_vision_calls": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "firecrawl_calls": {
+                    "type": "integer",
+                    "minimum": 0
+                }
+            }
+        }
+    }
+}

@@ -2,7 +2,11 @@
 
 ## Overview
 
-A cron-triggered multi-agent system executing locally via the **Claude Code CLI**, utilizing **Z.ai GLM 4.7** as the intelligence engine. The system discovers, tracks, and alerts on pricing for high-capacity RDIMM kits (128GB, 256GB, 512GB quad-channel configurations) compatible with AMD Threadripper 9000 series processors (July 2025 release).
+A cron-triggered multi-agent system executing locally. The system discovers, tracks, and alerts on pricing for high-capacity RDIMM kits (128GB, 256GB, 512GB quad-channel configurations) compatible with AMD Threadripper 9000 series processors (July 2025 release).
+
+**Core Philosophy:** "Deterministic Orchestration, probabilistic Intelligence."
+- The **Orchestrator** (Python/Bash) manages state, database connections, and control flow.
+- The **Agents** (Claude Code) are stateless workers that perform specific cognitive tasks (Search, Read, Analyze) and return structured JSON.
 
 ## Agent Topology
 
@@ -11,113 +15,92 @@ A cron-triggered multi-agent system executing locally via the **Claude Code CLI*
 │                              CRON (hourly)                                  │
 │                                   │                                         │
 │                                   ▼                                         │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                    ORCHESTRATOR AGENT                                │   │
-│  │                    (Claude Code CLI)                                 │   │
-│  │                                                                      │   │
-│  │  • Loads run state from PostgreSQL                                  │   │
-│  │  • Decides which sub-agents to spawn based on state                 │   │
-│  │  • Aggregates results                                               │   │
-│  │  • Persists state back to PostgreSQL                                │   │
-│  └──────────────┬──────────────┬──────────────┬──────────────┬─────────┘   │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                    ORCHESTRATOR (Shell/Python)                      │    │
+│  │                                                                     │    │
+│  │  1. Setup: Gen Run ID, Connect DB, Check Quotas                     │    │
+│  │  2. Job Gen: Create JSON tasks for Agents (e.g. "Scrape these 5")   │    │
+│  │  3. Spawn: Run 'claude' processes in parallel                       │    │
+│  │  4. Ingest: Parse JSON outputs, write to DB                         │    │
+│  │  5. Alert: Check triggers, dispatch notifications                   │    │
+│  └──────────────┬──────────────┬──────────────┬──────────────┬─────────┘    │
 │                 │              │              │              │              │
-│        ┌────────┴───┐  ┌───────┴───┐  ┌──────┴─────┐  ┌─────┴──────┐      │
-│        ▼            ▼  ▼           ▼  ▼            ▼  ▼            ▼      │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐        │
-│  │ DISCOVERY│ │ SCRAPER  │ │ SCRAPER  │ │ ANALYST  │ │ NOTIFIER │        │
-│  │  AGENT   │ │ AGENT 1  │ │ AGENT N  │ │  AGENT   │ │  AGENT   │        │
-│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘        │
-│       │            │            │            │            │               │
-│       ▼            ▼            ▼            ▼            ▼               │
-│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐         │
-│  │ SerpAPI │  │Firecrawl│  │ Z.ai    │  │PostgreSQL│ │ Notif.  │         │
-│  │ MCP     │  │ MCP     │  │Web Read │  │ (reads)  │ │ Channel │         │
-│  └─────────┘  └─────────┘  └─────────┘  └─────────┘  └─────────┘         │
+│        ┌────────┴───┐  ┌───────┴───┐  ┌──────┴─────┐  ┌─────┴──────┐        │
+│        ▼            ▼  ▼           ▼  ▼            ▼  ▼            ▼        │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐          │
+│  │ DISCOVERY│ │ SCRAPER  │ │ SCRAPER  │ │ ANALYST  │ │ NOTIFIER │          │
+│  │  WORKER  │ │ WORKER A │ │ WORKER B │ │  WORKER  │ │  WORKER  │          │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘          │
+│       │            │            │            │            │                 │
+│       ▼            ▼            ▼            ▼            ▼                 │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐           │
+│  │ SerpAPI │  │Firecrawl│  │ Z.ai    │  │  Pure   │  │ Stdout  │           │
+│  │ MCP     │  │ MCP     │  │Web Read │  │  JSON   │  │ (Logs)  │           │
+│  └─────────┘  └─────────┘  └─────────┘  └─────────┘  └─────────┘           │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Agent Responsibilities
+### Agent Responsibilities (Stateless Workers)
 
-| Agent | Spawned When | MCP Tools Used | Output |
-|-------|--------------|----------------|--------|
-| **Discovery** | Every 6 hours OR on-demand | **Z.ai Web Search Prime**, SerpAPI | New product URLs + initial prices |
-| **Scraper** (1-N) | Every run, parallelized by source | **Z.ai Web Reader**, **Z.ai Vision**, Firecrawl | Structured price data per SKU |
-| **Analyst** | After all scrapers complete | None (reads from DB) | Deal scores, anomaly flags |
-| **Notifier** | When Analyst flags deals | None (writes to stdout) | Alerts via stdout (log scraping) |
+| Agent | Input (JSON) | Tools | Output (JSON) |
+|-------|--------------|-------|---------------|
+| **Discovery** | Search terms, forbidden domains | **Z.ai Web Search**, SerpAPI | List of candidate URLs with metadata |
+| **Scraper** | Batch of target URLs, product hints | **Z.ai Web Reader**, **Z.ai Vision**, Firecrawl | Structured price/stock data per URL |
+| **Analyst** | Current observations + historical baseline | None (Pure Logic) | Deal confidence scores, "Arbitrage" flags |
+| **Notifier** | Deal details | None | Formatted alert message strings |
 
 ### Communication Model
 
-Agents do **not** communicate directly. All inter-agent communication flows through:
+Agents do **not** communicate directly. They do **not** connect to the database.
 
-1. **PostgreSQL** — persistent state (price history, product catalog, run metadata)
-2. **Run context file** — ephemeral state within a single cron invocation (JSON in `/tmp/rdimm-run-{timestamp}.json`)
-
-The orchestrator spawns sub-agents as separate Claude Code CLI invocations using `claude --print` or subprocess calls, passing the run context file path as an argument.
+1.  **Orchestrator -> Agent:** Input Context (JSON passed via `<context>` tag or prompt injection).
+2.  **Agent -> Orchestrator:** Output Result (JSON block).
 
 ## State & Memory Management
 
 ### Persistent State (PostgreSQL)
 
-Lives across all runs. Source of truth for:
+Managed exclusively by the Orchestrator's Python helper scripts.
 
-- Product catalog (known SKUs, URLs, metadata)
-- Price history (every observation timestamped)
-- Run metadata (last discovery time, error logs)
-- Alert history (what's been sent, when)
+- **sources:** Tables of known domains and their trust scores.
+- **products:** Canonical list of MPNs/SKUs we track.
+- **listings:** Mapping of Products to Source URLs.
+- **price_observations:** Time-series of price checks.
 
-### Ephemeral Run State (JSON file)
+### Ephemeral Run State (FileSystem)
 
-Created at the start of each cron invocation. Destroyed after run completes. Contains:
+The Orchestrator uses a temporary directory `/tmp/tr9-run-{id}/` to manage the flow.
 
-```json
-{
-  "run_id": "uuid",
-  "started_at": "ISO8601",
-  "phase": "discovery|scraping|analysis|notification|complete",
-  "discovery_results": [],
-  "scrape_queue": [],
-  "scrape_results": [],
-  "analysis_output": {},
-  "errors": []
-}
-```
+1.  `tasks/discovery_input.json`
+2.  `results/discovery_output.json`
+3.  `tasks/scraper_batch_a_input.json`
+4.  `results/scraper_batch_a_output.json`
 
-### State Flow Within a Run
+## Execution Flow
 
 ```
-1. Orchestrator starts
-   └── Creates run context file
-   └── Loads product catalog from PostgreSQL
-   └── Checks: time since last discovery run?
+1. START (orchestrator.sh)
+   └── Call `db_get_tasks.py` -> Returns JSON of "URLs to Scrape" and "Terms to Search"
    
-2. If discovery needed:
-   └── Spawns Discovery Agent
-   └── Discovery writes new URLs to run context
-   └── Orchestrator merges into scrape_queue
+2. DISCOVERY PHASE
+   └── If discovery_needed:
+       └── Run `claude -p prompts/discovery.md` with search terms
+       └── Parse output, dedup against DB, save new URLs to DB
+
+3. SCRAPING PHASE (Parallel)
+   └── Partition URLs into Batch A, Batch B
+   └── Spawn `claude -p prompts/scraper.md` for Batch A (background)
+   └── Spawn `claude -p prompts/scraper.md` for Batch B (background)
+   └── Wait for both.
+
+4. ANALYSIS PHASE
+   └── Run `db_ingest.py` to save Scraper results to PostgreSQL
+   └── Run `db_get_analysis_context.py` to fetch recent prices vs baselines
+   └── Run `claude -p prompts/analyst.md` with context
    
-3. Scraping phase:
-   └── Orchestrator partitions scrape_queue by retailer
-   └── Spawns N Scraper Agents (parallel or sequential)
-   └── Each Scraper writes to scrape_results in run context
-   
-4. Analysis phase:
-   └── Orchestrator spawns Analyst Agent
-   └── Analyst reads scrape_results + historical data from PostgreSQL
-   └── Writes deal scores to analysis_output
-   
-5. Notification phase:
-   └── If analysis_output contains actionable deals:
-       └── Spawns Notifier Agent
-       └── Notifier sends alerts, logs to PostgreSQL
+5. ALERT PHASE
+   └── If high-confidence deals found:
+       └── Log to stdout/email
        
-6. Cleanup:
-   └── Orchestrator persists scrape_results to PostgreSQL price_observations
-   └── Updates product catalog with any new SKUs
-   └── Deletes run context file
+6. END
 ```
-
-### Failure Handling
-
-- If a run crashes mid-execution, the run context file remains in `/tmp/`
-- Next cron invocation detects orphaned run context, logs warning, starts fresh
-- Individual agent failures are caught by orchestrator, logged, run continues with partial data
