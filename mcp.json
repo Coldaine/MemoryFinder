@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "zai-web-search": {
+      "command": "npx",
+      "args": ["-y", "@zai/web-search"]
+    },
+    "zai-web-reader": {
+      "command": "npx",
+      "args": ["-y", "@zai/web-reader"]
+    },
+    "zai-vision": {
+      "command": "npx",
+      "args": ["-y", "@zai/vision"]
+    },
+    "firecrawl": {
+      "command": "npx",
+      "args": ["-y", "@firecrawl/mcp"]
+    }
+  }
+}
