@@ -100,12 +100,14 @@ if ($runDirs) {
         try {
             $content = Get-Content -Raw $scrapeOutput | ConvertFrom-Json
             if ($content.status -eq "error") {
-                Write-Host "  WARNING: Scrape returned error: $($content.error)" -ForegroundColor Yellow
+                Write-Host "  ERROR: Scrape returned error: $($content.error)" -ForegroundColor Red
+                exit 1
             } else {
                 Write-Host "  Scrape output is valid JSON" -ForegroundColor Green
             }
         } catch {
-            Write-Host "  WARNING: Could not parse scrape_output.json" -ForegroundColor Yellow
+            Write-Host "  ERROR: Could not parse scrape_output.json" -ForegroundColor Red
+            exit 1
         }
     }
 } else {
