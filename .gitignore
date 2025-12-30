@@ -1,0 +1,20 @@
+# Test output (isolated from production)
+tests/output/
+tests/data/
+
+# Production data
+data/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

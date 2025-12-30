@@ -1,7 +1,11 @@
 import sqlite3
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "memoryfinder.db")
+# Allow override via environment variable for test isolation
+DB_PATH = os.environ.get(
+    "MEMORYFINDER_DB",
+    os.path.join(os.path.dirname(__file__), "..", "data", "memoryfinder.db")
+)
 
 def get_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
