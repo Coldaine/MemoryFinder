@@ -75,11 +75,13 @@ function Run-ClaudeAgent {
 
     try {
         # Read the prompt and pipe it to Claude
-        $result = Get-Content -Raw $FullPromptPath | claude @claudeArgs 2>&1
+        # Capture stdout and stderr separately to avoid mixing errors with JSON
+        $errorOutput = $null
+        $result = Get-Content -Raw $FullPromptPath | claude @claudeArgs 2>$null
 
         # PowerShell doesn't throw on non-zero exit from external commands
         if ($LASTEXITCODE -ne 0) {
-            throw "Claude CLI failed with exit code $LASTEXITCODE. Output: $result"
+            throw "Claude CLI failed with exit code $LASTEXITCODE"
         }
 
         # Write output to file
